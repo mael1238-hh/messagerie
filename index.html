@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sceau — messages chiffrés de bout en bout</title>
+<style>
+  :root{
+    --ink: #14161c;
+    --paper: #1c1f28;
+    --paper-raised: #232735;
+    --line: #333849;
+    --text: #e8e6de;
+    --text-dim: #9a9db0;
+    --seal: #d1a24a;
+    --seal-dim: #8c7136;
+    --ok: #7fae7f;
+    --err: #c46a5f;
+    --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: 'Source Serif 4', 'Iowan Old Style', 'Georgia', serif;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html{ -webkit-font-smoothing: antialiased; }
+
+  body{
+    margin:0;
+    background: var(--ink);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(209,162,74,0.06), transparent 40%),
+      radial-gradient(circle at 85% 100%, rgba(209,162,74,0.04), transparent 45%);
+    color: var(--text);
+    font-family: var(--serif);
+    min-height: 100vh;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding: 48px 20px 80px;
+  }
+
+  .wrap{ width:100%; max-width: 640px; }
+
+  header.hero{
+    text-align:center;
+    margin-bottom: 40px;
+  }
+
+  .seal-mark{
+    width: 52px; height:52px;
+    margin: 0 auto 18px;
+    display:block;
+  }
+
+  h1{
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 2rem;
+    letter-spacing: 0.01em;
+    margin: 0 0 10px;
+    color: var(--text);
+  }
+
+  .tagline{
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin:0;
+  }
+
+  .tabs{
+    display:flex;
+    gap: 2px;
+    background: var(--line);
+    border-radius: 10px;
+    padding: 3px;
+    margin-bottom: 22px;
+  }
+  .tabs button{
+    flex:1;
+    padding: 11px 14px;
+    border:none;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    border-radius: 8px;
+    cursor:pointer;
+    transition: background .18s ease, color .18s ease;
+  }
+  .tabs button.active{
+    background: var(--paper-raised);
+    color: var(--seal);
+  }
+
+  .card{
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 28px;
+  }
+
+  label{
+    display:block;
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  .field{ margin-bottom: 20px; }
+
+  input[type=password], input[type=text], textarea{
+    width:100%;
+    background: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    padding: 12px 14px;
+    resize: vertical;
+    transition: border-color .15s ease;
+  }
+  input:focus, textarea:focus{
+    outline: none;
+    border-color: var(--seal-dim);
+  }
+  textarea{ min-height: 110px; line-height: 1.5; }
+  textarea.output{ min-height: 130px; color: var(--seal); }
+
+  .pass-row{ display:flex; gap:10px; }
+  .pass-row input{ flex:1; }
+  .eye{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 0 14px;
+    cursor:pointer;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+  }
+
+  .strength{
+    height: 3px;
+    background: var(--line);
+    border-radius: 3px;
+    margin-top: 8px;
+    overflow:hidden;
+  }
+  .strength i{ display:block; height:100%; width:0%; background: var(--err); transition: width .2s ease, background .2s ease; }
+
+  button.primary{
+    width:100%;
+    background: var(--seal);
+    color: #1c1608;
+    border:none;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 14px;
+    border-radius: 9px;
+    cursor:pointer;
+    transition: filter .15s ease, transform .1s ease;
+  }
+  button.primary:hover{ filter: brightness(1.08); }
+  button.primary:active{ transform: scale(0.99); }
+  button.primary:disabled{ opacity:0.5; cursor:not-allowed; }
+
+  .out-block{ margin-top: 20px; }
+  .out-head{
+    display:flex; justify-content:space-between; align-items:center;
+    margin-bottom: 8px;
+  }
+  .copy-btn{
+    background:none; border:none; color: var(--text-dim);
+    font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.05em; cursor:pointer; padding: 2px 0;
+    border-bottom: 1px dashed var(--line);
+  }
+  .copy-btn:hover{ color: var(--seal); border-color: var(--seal-dim); }
+
+  .status{
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    margin-top: 14px;
+    min-height: 18px;
+  }
+  .status.ok{ color: var(--ok); }
+  .status.err{ color: var(--err); }
+
+  footer{
+    max-width: 640px;
+    margin-top: 34px;
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    line-height: 1.7;
+    color: var(--text-dim);
+    padding: 20px 4px 0;
+    border-top: 1px solid var(--line);
+  }
+  footer strong{ color: var(--text); }
+
+  @media (max-width: 480px){
+    .card{ padding: 20px; }
+    h1{ font-size: 1.6rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="hero">
+    <svg class="seal-mark" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="26" cy="26" r="25" stroke="#d1a24a" stroke-width="1.4"/>
+      <path d="M17 24V19a9 9 0 0 1 18 0v5" stroke="#d1a24a" stroke-width="1.6" stroke-linecap="round"/>
+      <rect x="14" y="24" width="24" height="16" rx="2.5" stroke="#d1a24a" stroke-width="1.6"/>
+      <circle cx="26" cy="31" r="2.2" fill="#d1a24a"/>
+      <line x1="26" y1="33" x2="26" y2="36" stroke="#d1a24a" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    <h1>Sceau</h1>
+    <p class="tagline">Chiffrement local · AES-256-GCM · aucune donnée transmise</p>
+  </header>
+
+  <div class="tabs">
+    <button id="tabEnc" class="active" onclick="setMode('enc')">Chiffrer</button>
+    <button id="tabDec" onclick="setMode('dec')">Déchiffrer</button>
+  </div>
+
+  <!-- ENCRYPT -->
+  <section class="card" id="panelEnc">
+    <div class="field">
+      <label for="encPass">Phrase secrète partagée</label>
+      <div class="pass-row">
+        <input type="password" id="encPass" placeholder="Convenue à l'avance, hors ligne" autocomplete="off">
+        <button class="eye" type="button" onclick="toggleVis('encPass')">voir</button>
+      </div>
+      <div class="strength"><i id="strBar"></i></div>
+    </div>
+    <div class="field">
+      <label for="encMsg">Message en clair</label>
+      <textarea id="encMsg" placeholder="Écrivez votre message ici…"></textarea>
+    </div>
+    <button class="primary" onclick="doEncrypt()">Chiffrer le message</button>
+
+    <div class="out-block" id="encOutBlock" hidden>
+      <div class="out-head">
+        <label style="margin:0">Bloc chiffré à transmettre</label>
+        <button class="copy-btn" onclick="copyField('encOut')">copier</button>
+      </div>
+      <textarea class="output" id="encOut" readonly></textarea>
+    </div>
+    <div class="status" id="encStatus"></div>
+  </section>
+
+  <!-- DECRYPT -->
+  <section class="card" id="panelDec" hidden>
+    <div class="field">
+      <label for="decPass">Phrase secrète partagée</label>
+      <div class="pass-row">
+        <input type="password" id="decPass" placeholder="La même phrase que l'expéditeur" autocomplete="off">
+        <button class="eye" type="button" onclick="toggleVis('decPass')">voir</button>
+      </div>
+    </div>
+    <div class="field">
+      <label for="decIn">Bloc chiffré reçu</label>
+      <textarea id="decIn" placeholder="Collez ici le bloc reçu…"></textarea>
+    </div>
+    <button class="primary" onclick="doDecrypt()">Déchiffrer le message</button>
+
+    <div class="out-block" id="decOutBlock" hidden>
+      <div class="out-head">
+        <label style="margin:0">Message en clair</label>
+        <button class="copy-btn" onclick="copyField('decOut')">copier</button>
+      </div>
+      <textarea class="output" id="decOut" readonly></textarea>
+    </div>
+    <div class="status" id="decStatus"></div>
+  </section>
+
+  <footer>
+    <strong>Comment ça marche·</strong> tout le chiffrement se fait dans votre navigateur, avec l'API Web Crypto native — rien n'est envoyé à un serveur, cette page peut même fonctionner hors ligne une fois chargée.<br><br>
+    <strong>Avant d'envoyer un message·</strong> mettez-vous d'accord avec votre correspondant sur une phrase secrète, par un canal différent de celui où transitera le bloc chiffré (de vive voix, par exemple). Le bloc chiffré peut ensuite voyager par n'importe quel canal, même non sécurisé : e-mail, SMS, chat public.<br><br>
+    <strong>Limites·</strong> la sécurité dépend entièrement de la force de la phrase secrète et du fait qu'elle reste connue des deux seules personnes concernées. Cet outil ne gère ni l'échange de clés, ni l'identité des correspondants, ni l'historique des messages.
+  </footer>
+</div>
+
+<script>
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  function setMode(mode){
+    const isEnc = mode === 'enc';
+    document.getElementById('tabEnc').classList.toggle('active', isEnc);
+    document.getElementById('tabDec').classList.toggle('active', !isEnc);
+    document.getElementById('panelEnc').hidden = !isEnc;
+    document.getElementById('panelDec').hidden = isEnc;
+  }
+
+  function toggleVis(id){
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+  }
+
+  function setStatus(id, msg, kind){
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function copyField(id){
+    const el = document.getElementById(id);
+    if(!el.value) return;
+    navigator.clipboard.writeText(el.value);
+    const btn = el.closest('.out-block').querySelector('.copy-btn');
+    const original = btn.textContent;
+    btn.textContent = 'copié ✓';
+    setTimeout(() => btn.textContent = original, 1400);
+  }
+
+  // --- strength meter (rough heuristic, purely visual guidance) ---
+  document.getElementById('encPass').addEventListener('input', e => {
+    const v = e.target.value;
+    let score = 0;
+    if(v.length >= 8) score++;
+    if(v.length >= 14) score++;
+    if(/[A-Z]/.test(v) && /[a-z]/.test(v)) score++;
+    if(/[0-9]/.test(v)) score++;
+    if(/[^A-Za-z0-9]/.test(v)) score++;
+    const pct = Math.min(100, (score / 5) * 100);
+    const bar = document.getElementById('strBar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct < 40 ? '#c46a5f' : pct < 75 ? '#d1a24a' : '#7fae7f';
+  });
+
+  function toB64(bytes){
+    let bin = '';
+    bytes.forEach(b => bin += String.fromCharCode(b));
+    return btoa(bin);
+  }
+  function fromB64(b64){
+    const bin = atob(b64.trim());
+    const bytes = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  }
+
+  async function deriveKey(passphrase, salt){
+    const baseKey = await crypto.subtle.importKey(
+      'raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']
+    );
+    return crypto.subtle.deriveKey(
+      { name:'PBKDF2', salt, iterations: 210000, hash:'SHA-256' },
+      baseKey,
+      { name:'AES-GCM', length:256 },
+      false,
+      ['encrypt','decrypt']
+    );
+  }
+
+  async function doEncrypt(){
+    const pass = document.getElementById('encPass').value;
+    const msg = document.getElementById('encMsg').value;
+    document.getElementById('encOutBlock').hidden = true;
+    if(!pass){ setStatus('encStatus','Entrez une phrase secrète.', 'err'); return; }
+    if(!msg){ setStatus('encStatus','Le message est vide.', 'err'); return; }
+
+    setStatus('encStatus','Chiffrement…');
+    try{
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveKey(pass, salt);
+      const cipherBuf = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, enc.encode(msg));
+      const cipherBytes = new Uint8Array(cipherBuf);
+
+      const payload = new Uint8Array(salt.length + iv.length + cipherBytes.length);
+      payload.set(salt, 0);
+      payload.set(iv, salt.length);
+      payload.set(cipherBytes, salt.length + iv.length);
+
+      document.getElementById('encOut').value = toB64(payload);
+      document.getElementById('encOutBlock').hidden = false;
+      setStatus('encStatus','Bloc chiffré prêt — transmettez-le par le canal de votre choix.', 'ok');
+    }catch(err){
+      setStatus('encStatus','Échec du chiffrement : ' + err.message, 'err');
+    }
+  }
+
+  async function doDecrypt(){
+    const pass = document.getElementById('decPass').value;
+    const raw = document.getElementById('decIn').value;
+    document.getElementById('decOutBlock').hidden = true;
+    if(!pass){ setStatus('decStatus','Entrez la phrase secrète.', 'err'); return; }
+    if(!raw){ setStatus('decStatus','Collez le bloc chiffré.', 'err'); return; }
+
+    setStatus('decStatus','Déchiffrement…');
+    try{
+      const payload = fromB64(raw);
+      const salt = payload.slice(0,16);
+      const iv = payload.slice(16,28);
+      const cipherBytes = payload.slice(28);
+      const key = await deriveKey(pass, salt);
+      const plainBuf = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, cipherBytes);
+
+      document.getElementById('decOut').value = dec.decode(plainBuf);
+      document.getElementById('decOutBlock').hidden = false;
+      setStatus('decStatus','Message déchiffré.', 'ok');
+    }catch(err){
+      setStatus('decStatus','Impossible de déchiffrer — phrase secrète incorrecte ou bloc corrompu.', 'err');
+    }
+  }
+</script>
+</body>
+</html>
